@@ -9,7 +9,8 @@ extern "C" {
 #include "sensor_msgs/image_encodings.hpp"
 #include "sensor_msgs/msg/compressed_image.hpp"
 #include "sensor_msgs/msg/image.hpp"
-
+#include "std_srvs/srv/set_bool.hpp"
+#include "std_srvs/srv/trigger.hpp"
 
 #include "tcam-property-1.0.h"
 
@@ -57,6 +58,11 @@ class GSCamNode::impl
 
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr control_param_callback_;
 
+  // AutoIris Service
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr auto_iris_srv_;
+
+  // AutoFocus Service
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr auto_focus_srv_;
 
   // We need to poll GStreamer to get data
   // Move this to its own thread to avoid blocking or slowing down the rclcpp::spin() thread
@@ -256,6 +262,78 @@ bool GSCamNode::impl::create_pipeline()
 
       return result;
     });
+  }
+
+
+  // Register AutoIris Service.
+  if (!auto_iris_srv_) {
+    auto_iris_srv_ = node_->create_service<std_srvs::srv::SetBool>(
+      "set_auto_iris",
+      [this](const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+             std::shared_ptr<std_srvs::srv::SetBool::Response> response)
+      {
+        if (!tcambin_) {
+          RCLCPP_ERROR(node_->get_logger(), "tcambin not available");
+          response->success = false;
+          response->message = "tcambin not available";
+          return;
+        }
+
+        const char * val = request->data ? "Continuous" : "Off";
+        GError *err = nullptr;
+
+        tcam_property_provider_set_tcam_enumeration(
+          TCAM_PROPERTY_PROVIDER(tcambin_),
+          "IrisAuto",
+          val,
+          &err);
+
+        if (err) {
+          RCLCPP_ERROR(node_->get_logger(), "AutoIris failed: %s", err->message);
+          response->success = false;
+          response->message = err->message;
+          g_error_free(err);
+        } else {
+          RCLCPP_INFO(node_->get_logger(), "AutoIris set to %s", val);
+          response->success = true;
+          response->message = std::string("AutoIris set to ") + val;
+        }
+      });
+  }
+
+  // Register AutoFocus Service.
+  if (!auto_focus_srv_) {
+    auto_focus_srv_ = node_->create_service<std_srvs::srv::Trigger>(
+      "set_auto_focus",
+      [this](const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+             std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+      {
+        if (!tcambin_) {
+          RCLCPP_ERROR(node_->get_logger(), "tcambin not available");
+          response->success = false;
+          response->message = "tcambin not available";
+          return;
+        }
+
+        GError *err = nullptr;
+
+        tcam_property_provider_set_tcam_enumeration(
+          TCAM_PROPERTY_PROVIDER(tcambin_),
+          "FocusAuto",
+          "Once",
+          &err);
+
+        if (err) {
+          RCLCPP_ERROR(node_->get_logger(), "AutoFocus failed: %s", err->message);
+          response->success = false;
+          response->message = err->message;
+          g_error_free(err);
+        } else {
+          RCLCPP_INFO(node_->get_logger(), "AutoFocus triggered successfully");
+          response->success = true;
+          response->message = "AutoFocus triggered successfully";
+        }
+      });
   }
 
   // Create RGB sink
@@ -770,33 +848,3 @@ void GSCamNode::validate_parameters()
 #include "rclcpp_components/register_node_macro.hpp"
 
 RCLCPP_COMPONENTS_REGISTER_NODE(gscam2::GSCamNode)  // NOLINT
-
-void gscam2::GSCamNode::handle_set_auto_iris(const std::shared_ptr<gscam2::srv::SetAutoIris::Request> request,
-                                             std::shared_ptr<gscam2::srv::SetAutoIris::Response> response)
-{
-  if (!tcambin_) {
-    response->success = false;
-    response->message = "tcambin element not available";
-    RCLCPP_ERROR(this->get_logger(), "tcambin element not available");
-    return;
-  }
-
-  GError *err = nullptr;
-  const char *mode = request->data ? "Continuous" : "Off";
-  tcam_property_provider_set_tcam_enum(
-    TCAM_PROPERTY_PROVIDER(tcambin_),
-    "AutoIris",
-    mode,
-    &err);
-
-  if (err) {
-    response->success = false;
-    response->message = std::string("Failed to set AutoIris: ") + err->message;
-    RCLCPP_ERROR(this->get_logger(), "Failed to set AutoIris: %s", err->message);
-    g_error_free(err);
-  } else {
-    response->success = true;
-    response->message = std::string("AutoIris set to ") + mode;
-    RCLCPP_INFO(this->get_logger(), "AutoIris set to %s", mode);
-  }
-}

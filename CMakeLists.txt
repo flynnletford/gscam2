@@ -32,15 +32,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
-
-# Service for AutoIris
-find_package(builtin_interfaces REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
-
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/SetAutoIris.srv"
-  DEPENDENCIES builtin_interfaces
-)
+find_package(std_srvs REQUIRED)
 
 # Create ament index resource which references the libraries in the binary dir
 set(node_plugins "")
@@ -63,24 +55,21 @@ target_include_directories(gscam_node
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+# 1. Plain target_link_libraries (no PRIVATE or PUBLIC keywords)
 target_link_libraries(gscam_node
-  PRIVATE
     camera_calibration_parsers::camera_calibration_parsers
     camera_info_manager::camera_info_manager
     class_loader::class_loader
     rclcpp_components::component
     sensor_msgs::sensor_msgs_library
-  PUBLIC
     rclcpp::rclcpp
     PkgConfig::GSTREAMER
     PkgConfig::GST_APP
-    tcam-property)
-
-ament_target_dependencies(gscam_node
-  rclcpp
-  sensor_msgs
-  gscam2__rosidl_typesupport_cpp
+    tcam-property
 )
+
+# 2. Then add your ROS 2 dependencies
+ament_target_dependencies(gscam_node std_srvs)
 
 rclcpp_components_register_nodes(gscam_node "gscam2::GSCamNode")
 set(node_plugins "${node_plugins}gscam2::GSCamNode;$<TARGET_FILE:gscam_node>\n")
@@ -108,12 +97,6 @@ target_link_libraries(subscriber_node
   PUBLIC
     rclcpp::rclcpp)
 
-ament_target_dependencies(subscriber_node
-  rclcpp
-  sensor_msgs
-  gscam2__rosidl_typesupport_cpp
-)
-
 rclcpp_components_register_nodes(subscriber_node "gscam2::ImageSubscriberNode")
 set(node_plugins "${node_plugins}gscam2::ImageSubscriberNode;$<TARGET_FILE:subscriber_node>\n")
 
@@ -126,9 +109,7 @@ add_executable(gscam_main
 
 target_link_libraries(gscam_main
   PRIVATE
-    gscam2::gscam_node
-    gscam2__rosidl_typesupport_cpp
-)
+    gscam2::gscam_node)
 
 #=============
 # Manual composition of camera and subscriber nodes, IPC=true
@@ -140,9 +121,7 @@ target_link_libraries(ipc_test_main
   PRIVATE
     gscam2::gscam_node
     gscam2::subscriber_node
-    sensor_msgs::sensor_msgs_library
-    gscam2__rosidl_typesupport_cpp
-)
+    sensor_msgs::sensor_msgs_library)
 
 #=============
 # Test
@@ -191,6 +170,5 @@ install(DIRECTORY cfg launch
 ament_export_targets(gscam2_targets HAS_LIBRARY_TARGET)
 
 ament_export_dependencies(rclcpp sensor_msgs)
-ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()
