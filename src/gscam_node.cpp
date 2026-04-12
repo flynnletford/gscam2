@@ -50,6 +50,11 @@ class GSCamNode::impl
   GstElement * pipeline_;
   GstElement * sink_;
 
+  GstElement * tcambin_ = nullptr;
+
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr control_param_callback_;
+
+
   // We need to poll GStreamer to get data
   // Move this to its own thread to avoid blocking or slowing down the rclcpp::spin() thread
   std::thread pipeline_thread_;
@@ -146,6 +151,68 @@ bool GSCamNode::impl::create_pipeline()
   if (!pipeline_) {
     RCLCPP_FATAL(node_->get_logger(), "%s", error->message);
     return false;
+  }
+
+  tcambin_ = gst_bin_get_by_name(GST_BIN(pipeline_), "zoom_camera_pipeline");
+  if (!tcambin_) {
+    RCLCPP_FATAL(node_->get_logger(), "Failed to find tcambin 'zoom_camera_pipeline'");
+    return false;
+  } else {
+    RCLCPP_INFO(node_->get_logger(), "tcambin found and ready for control");
+  }
+
+  // Declare control parameters (safe to call multiple times)
+  node_->declare_parameter("zoom", 0);
+  node_->declare_parameter("focus", 10000);
+  node_->declare_parameter("iris", 255);
+
+  // Register control callback ONLY ONCE
+  if (!control_param_callback_) {
+    control_param_callback_ =
+      node_->add_on_set_parameters_callback(
+        [this](const std::vector<rclcpp::Parameter>& params)
+        {
+          rcl_interfaces::msg::SetParametersResult result;
+          result.successful = true;
+
+          if (!tcambin_) {
+            RCLCPP_ERROR(node_->get_logger(), "tcambin not available");
+            result.successful = false;
+            return result;
+          }
+
+          for (const auto &param : params)
+          {
+            try
+            {
+              if (param.get_name() == "zoom")
+              {
+                int val = param.as_int();
+                g_object_set(G_OBJECT(tcambin_), "Zoom", val, NULL);
+                RCLCPP_INFO(node_->get_logger(), "Zoom set to %d", val);
+              }
+              else if (param.get_name() == "focus")
+              {
+                int val = param.as_int();
+                g_object_set(G_OBJECT(tcambin_), "Focus", val, NULL);
+                RCLCPP_INFO(node_->get_logger(), "Focus set to %d", val);
+              }
+              else if (param.get_name() == "iris")
+              {
+                int val = param.as_int();
+                g_object_set(G_OBJECT(tcambin_), "Iris", val, NULL);
+                RCLCPP_INFO(node_->get_logger(), "Iris set to %d", val);
+              }
+            }
+            catch (const std::exception &e)
+            {
+              RCLCPP_ERROR(node_->get_logger(), "Failed to set param: %s", e.what());
+              result.successful = false;
+            }
+          }
+
+          return result;
+        });
   }
 
   // Create RGB sink

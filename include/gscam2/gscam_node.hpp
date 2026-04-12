@@ -3,6 +3,9 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include <rclcpp/parameter.hpp>
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
+
 namespace gscam2
 {
 
@@ -19,6 +22,14 @@ public:
   explicit GSCamNode(const rclcpp::NodeOptions & options);
 
   ~GSCamNode() override;
+
+private:
+  GstElement* tcambin_ = nullptr;
+
+  OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
+
+  rcl_interfaces::msg::SetParametersResult
+  parametersCallback(const std::vector<rclcpp::Parameter>& params);
 };
 
 }
