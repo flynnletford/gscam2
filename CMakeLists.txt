@@ -33,8 +33,6 @@ find_package(rclcpp_components REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
-pkg_check_modules(TCAM REQUIRED tcam)
-
 # Create ament index resource which references the libraries in the binary dir
 set(node_plugins "")
 
@@ -67,7 +65,7 @@ target_link_libraries(gscam_node
     rclcpp::rclcpp
     PkgConfig::GSTREAMER
     PkgConfig::GST_APP
-    PkgConfig::TCAM)
+    tcam)
 
 rclcpp_components_register_nodes(gscam_node "gscam2::GSCamNode")
 set(node_plugins "${node_plugins}gscam2::GSCamNode;$<TARGET_FILE:gscam_node>\n")
