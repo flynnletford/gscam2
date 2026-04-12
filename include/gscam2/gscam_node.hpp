@@ -5,6 +5,7 @@
 
 #include <rclcpp/parameter.hpp>
 #include <rcl_interfaces/msg/set_parameters_result.hpp>
+#include "std_srvs/srv/set_bool.hpp"
 
 extern "C" {
 #include <gst/gst.h>
@@ -24,16 +25,16 @@ class GSCamNode : public rclcpp::Node
 
 public:
   explicit GSCamNode(const rclcpp::NodeOptions & options);
-
   ~GSCamNode() override;
 
 private:
   GstElement* tcambin_ = nullptr;
-
   OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
 
-  rcl_interfaces::msg::SetParametersResult
-  parametersCallback(const std::vector<rclcpp::Parameter>& params);
+  // Service to set AutoIris
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr set_auto_iris_srv_;
+  void handle_set_auto_iris(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+                            std::shared_ptr<std srvs::srv::SetBool::Response> response);
 };
 
 }

@@ -770,3 +770,33 @@ void GSCamNode::validate_parameters()
 #include "rclcpp_components/register_node_macro.hpp"
 
 RCLCPP_COMPONENTS_REGISTER_NODE(gscam2::GSCamNode)  // NOLINT
+
+void gscam2::GSCamNode::handle_set_auto_iris(const std::shared_ptr<std srvs::srv::SetBool::Request> request,
+                                             std::shared_ptr<std srvs::srv::SetBool::Response> response)
+{
+  if (!tcambin_) {
+    response->success = false;
+    response->message = "tcambin element not available";
+    RCLCPP_ERROR(this->get_logger(), "tcambin element not available");
+    return;
+  }
+
+  GError *err = nullptr;
+  const char *mode = request->data ? "Continuous" : "Off";
+  tcam_property_provider_set_tcam_enum(
+    TCAM_PROPERTY_PROVIDER(tcambin_),
+    "AutoIris",
+    mode,
+    &err);
+
+  if (err) {
+    response->success = false;
+    response->message = std::string("Failed to set AutoIris: ") + err->message;
+    RCLCPP_ERROR(this->get_logger(), "Failed to set AutoIris: %s", err->message);
+    g_error_free(err);
+  } else {
+    response->success = true;
+    response->message = std::string("AutoIris set to ") + mode;
+    RCLCPP_INFO(this->get_logger(), "AutoIris set to %s", mode);
+  }
+}

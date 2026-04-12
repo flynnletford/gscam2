@@ -33,6 +33,13 @@ find_package(rclcpp_components REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
+# Service for AutoIris
+find_package(builtin_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+find_package(std_srvs REQUIRED)
+
+
 # Create ament index resource which references the libraries in the binary dir
 set(node_plugins "")
 
@@ -166,5 +173,6 @@ install(DIRECTORY cfg launch
 ament_export_targets(gscam2_targets HAS_LIBRARY_TARGET)
 
 ament_export_dependencies(rclcpp sensor_msgs)
+ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()
