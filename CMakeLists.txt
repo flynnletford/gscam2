@@ -76,6 +76,12 @@ target_link_libraries(gscam_node
     PkgConfig::GST_APP
     tcam-property)
 
+ament_target_dependencies(gscam_node
+  rclcpp
+  sensor_msgs
+  gscam2__rosidl_typesupport_cpp
+)
+
 rclcpp_components_register_nodes(gscam_node "gscam2::GSCamNode")
 set(node_plugins "${node_plugins}gscam2::GSCamNode;$<TARGET_FILE:gscam_node>\n")
 
@@ -102,6 +108,12 @@ target_link_libraries(subscriber_node
   PUBLIC
     rclcpp::rclcpp)
 
+ament_target_dependencies(subscriber_node
+  rclcpp
+  sensor_msgs
+  gscam2__rosidl_typesupport_cpp
+)
+
 rclcpp_components_register_nodes(subscriber_node "gscam2::ImageSubscriberNode")
 set(node_plugins "${node_plugins}gscam2::ImageSubscriberNode;$<TARGET_FILE:subscriber_node>\n")
 
@@ -114,7 +126,9 @@ add_executable(gscam_main
 
 target_link_libraries(gscam_main
   PRIVATE
-    gscam2::gscam_node)
+    gscam2::gscam_node
+    gscam2__rosidl_typesupport_cpp
+)
 
 #=============
 # Manual composition of camera and subscriber nodes, IPC=true
@@ -126,7 +140,9 @@ target_link_libraries(ipc_test_main
   PRIVATE
     gscam2::gscam_node
     gscam2::subscriber_node
-    sensor_msgs::sensor_msgs_library)
+    sensor_msgs::sensor_msgs_library
+    gscam2__rosidl_typesupport_cpp
+)
 
 #=============
 # Test
