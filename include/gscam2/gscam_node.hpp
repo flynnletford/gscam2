@@ -5,7 +5,7 @@
 
 #include <rclcpp/parameter.hpp>
 #include <rcl_interfaces/msg/set_parameters_result.hpp>
-#include "std_srvs/srv/set_bool.hpp"
+#include "std_srvs/srv/SetBool.hpp"
 
 extern "C" {
 #include <gst/gst.h>
@@ -32,8 +32,8 @@ private:
   OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
 
   // Service to set AutoIris
-  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr set_auto_iris_srv_;
-  void handle_set_auto_iris(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+  rclcpp::Service<std srvs::srv::SetBool>::SharedPtr set_auto_iris_srv_;
+  void handle_set_auto_iris(const std::shared_ptr<std srvs::srv::SetBool::Request> request,
                             std::shared_ptr<std srvs::srv::SetBool::Response> response);
 };
 
