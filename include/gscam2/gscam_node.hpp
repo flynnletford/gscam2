@@ -6,6 +6,10 @@
 #include <rclcpp/parameter.hpp>
 #include <rcl_interfaces/msg/set_parameters_result.hpp>
 
+extern "C" {
+#include <gst/gst.h>
+}
+
 namespace gscam2
 {
 
