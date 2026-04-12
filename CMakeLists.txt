@@ -32,6 +32,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 # Create ament index resource which references the libraries in the binary dir
 set(node_plugins "")
@@ -54,18 +55,21 @@ target_include_directories(gscam_node
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+# 1. Plain target_link_libraries (no PRIVATE or PUBLIC keywords)
 target_link_libraries(gscam_node
-  PRIVATE
     camera_calibration_parsers::camera_calibration_parsers
     camera_info_manager::camera_info_manager
     class_loader::class_loader
     rclcpp_components::component
     sensor_msgs::sensor_msgs_library
-  PUBLIC
     rclcpp::rclcpp
     PkgConfig::GSTREAMER
     PkgConfig::GST_APP
-    tcam-property)
+    tcam-property
+)
+
+# 2. Then add your ROS 2 dependencies
+ament_target_dependencies(gscam_node std_srvs)
 
 rclcpp_components_register_nodes(gscam_node "gscam2::GSCamNode")
 set(node_plugins "${node_plugins}gscam2::GSCamNode;$<TARGET_FILE:gscam_node>\n")
