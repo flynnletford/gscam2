@@ -1,0 +1,7 @@
+# SetAutoIris.srv
+# Request
+bool data
+---
+# Response
+bool success
+string message

@@ -771,8 +771,8 @@ void GSCamNode::validate_parameters()
 
 RCLCPP_COMPONENTS_REGISTER_NODE(gscam2::GSCamNode)  // NOLINT
 
-void gscam2::GSCamNode::handle_set_auto_iris(const std::shared_ptr<std srvs::srv::SetBool::Request> request,
-                                             std::shared_ptr<std srvs::srv::SetBool::Response> response)
+void gscam2::GSCamNode::handle_set_auto_iris(const std::shared_ptr<gscam2::srv::SetAutoIris::Request> request,
+                                             std::shared_ptr<gscam2::srv::SetAutoIris::Response> response)
 {
   if (!tcambin_) {
     response->success = false;

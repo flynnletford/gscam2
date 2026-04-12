@@ -37,8 +37,10 @@ find_package(sensor_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
-find_package(std_srvs REQUIRED)
-
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/SetAutoIris.srv"
+  DEPENDENCIES builtin_interfaces
+)
 
 # Create ament index resource which references the libraries in the binary dir
 set(node_plugins "")
