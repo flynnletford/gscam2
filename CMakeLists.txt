@@ -64,7 +64,8 @@ target_link_libraries(gscam_node
   PUBLIC
     rclcpp::rclcpp
     PkgConfig::GSTREAMER
-    PkgConfig::GST_APP)
+    PkgConfig::GST_APP
+    tcam-property)
 
 rclcpp_components_register_nodes(gscam_node "gscam2::GSCamNode")
 set(node_plugins "${node_plugins}gscam2::GSCamNode;$<TARGET_FILE:gscam_node>\n")
