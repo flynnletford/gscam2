@@ -10,6 +10,9 @@ extern "C" {
 #include "sensor_msgs/msg/compressed_image.hpp"
 #include "sensor_msgs/msg/image.hpp"
 
+
+#include "tcam-property-1.0.h"
+
 namespace gscam2
 {
 
@@ -169,50 +172,90 @@ bool GSCamNode::impl::create_pipeline()
   // Register control callback ONLY ONCE
   if (!control_param_callback_) {
     control_param_callback_ =
-      node_->add_on_set_parameters_callback(
-        [this](const std::vector<rclcpp::Parameter>& params)
+    node_->add_on_set_parameters_callback(
+    [this](const std::vector<rclcpp::Parameter>& params)
+    {
+      rcl_interfaces::msg::SetParametersResult result;
+      result.successful = true;
+
+      if (!tcambin_) {
+        RCLCPP_ERROR(node_->get_logger(), "tcambin not available");
+        result.successful = false;
+        return result;
+      }
+
+      for (const auto &param : params)
+      {
+        try
         {
-          rcl_interfaces::msg::SetParametersResult result;
-          result.successful = true;
-
-          if (!tcambin_) {
-            RCLCPP_ERROR(node_->get_logger(), "tcambin not available");
-            result.successful = false;
-            return result;
-          }
-
-          for (const auto &param : params)
+          if (param.get_name() == "zoom")
           {
-            try
-            {
-              if (param.get_name() == "zoom")
-              {
-                int val = param.as_int();
-                g_object_set(G_OBJECT(tcambin_), "Zoom", val, NULL);
-                RCLCPP_INFO(node_->get_logger(), "Zoom set to %d", val);
-              }
-              else if (param.get_name() == "focus")
-              {
-                int val = param.as_int();
-                g_object_set(G_OBJECT(tcambin_), "Focus", val, NULL);
-                RCLCPP_INFO(node_->get_logger(), "Focus set to %d", val);
-              }
-              else if (param.get_name() == "iris")
-              {
-                int val = param.as_int();
-                g_object_set(G_OBJECT(tcambin_), "Iris", val, NULL);
-                RCLCPP_INFO(node_->get_logger(), "Iris set to %d", val);
-              }
-            }
-            catch (const std::exception &e)
-            {
-              RCLCPP_ERROR(node_->get_logger(), "Failed to set param: %s", e.what());
+
+            GError *err = nullptr;
+            int val = param.as_int();
+
+            tcam_property_provider_set_tcam_integer(
+              TCAM_PROPERTY_PROVIDER(tcambin_),
+              "Zoom",
+              val,
+              &err);
+
+            if (err) {
+              RCLCPP_ERROR(node_->get_logger(), "Zoom failed: %s", err->message);
+              g_error_free(err);
               result.successful = false;
+            } else {
+              RCLCPP_INFO(node_->get_logger(), "Zoom set to %d", val);
             }
           }
+          else if (param.get_name() == "focus")
+          {
+            GError *err = nullptr;
+            int val = param.as_int();
 
-          return result;
-        });
+            tcam_property_provider_set_tcam_integer(
+              TCAM_PROPERTY_PROVIDER(tcambin_),
+              "Focus",
+              val,
+              &err);
+
+            if (err) {
+              RCLCPP_ERROR(node_->get_logger(), "Focus failed: %s", err->message);
+              g_error_free(err);
+              result.successful = false;
+            } else {
+              RCLCPP_INFO(node_->get_logger(), "Focus set to %d", val);
+            }
+          }
+          else if (param.get_name() == "iris")
+          {
+            GError *err = nullptr;
+            int val = param.as_int();
+
+            tcam_property_provider_set_tcam_integer(
+              TCAM_PROPERTY_PROVIDER(tcambin_),
+              "Iris",
+              val,
+              &err);
+
+            if (err) {
+              RCLCPP_ERROR(node_->get_logger(), "Iris failed: %s", err->message);
+              g_error_free(err);
+              result.successful = false;
+            } else {
+              RCLCPP_INFO(node_->get_logger(), "Iris set to %d", val);
+            }
+          }
+        }
+        catch (const std::exception &e)
+        {
+          RCLCPP_ERROR(node_->get_logger(), "Failed to set param: %s", e.what());
+          result.successful = false;
+        }
+      }
+
+      return result;
+    });
   }
 
   // Create RGB sink
@@ -373,6 +416,10 @@ void GSCamNode::impl::delete_pipeline()
     gst_element_set_state(pipeline_, GST_STATE_NULL);
     gst_object_unref(pipeline_);
     pipeline_ = nullptr;
+    if (tcambin_) {
+      gst_object_unref(tcambin_);
+      tcambin_ = nullptr;
+    }
     if (!shutdown_signal_ && rclcpp::ok()) {
       RCLCPP_INFO(node_->get_logger(), "Pipeline deleted");
     }
