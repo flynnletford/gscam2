@@ -170,8 +170,22 @@ bool GSCamNode::impl::create_pipeline()
     RCLCPP_INFO(node_->get_logger(), "tcambin found and ready for control");
   }
 
+  // 1. Create a descriptor for the Zoom parameter
+  rcl_interfaces::msg::ParameterDescriptor zoom_desc;
+  zoom_desc.description = "Camera Zoom Level";
+  
+  // 2. Define the min, max, and step size
+  rcl_interfaces::msg::IntegerRange zoom_range;
+  zoom_range.from_value = 0;
+  zoom_range.to_value = 1000;
+  zoom_range.step = 1;
+  zoom_desc.integer_range.push_back(zoom_range);
+
+  // 3. Declare the parameter using the descriptor
+  node_->declare_parameter("zoom", 0, zoom_desc);
+
   // Declare control parameters (safe to call multiple times)
-  node_->declare_parameter("zoom", 0);
+  // node_->declare_parameter("zoom", 0);
   node_->declare_parameter("focus", 10000);
   node_->declare_parameter("iris", 255);
 
@@ -524,6 +538,40 @@ unsigned int bytes_per_pixel(const std::string & encoding)
 
 void GSCamNode::impl::process_frame()
 {
+
+  GstBus *bus = gst_element_get_bus(pipeline_);
+  GstMessage *msg;
+
+  // Pop all pending messages from the bus
+  while ((msg = gst_bus_pop_filtered(bus, 
+          (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_WARNING | GST_MESSAGE_EOS))) != nullptr) 
+  {
+    GError *err = nullptr;
+    gchar *debug_info = nullptr;
+
+    switch (GST_MESSAGE_TYPE(msg)) {
+      case GST_MESSAGE_ERROR:
+        gst_message_parse_error(msg, &err, &debug_info);
+        RCLCPP_ERROR(node_->get_logger(), "GStreamer CRITICAL: %s", err->message);
+        RCLCPP_ERROR(node_->get_logger(), "Debug Info: %s", debug_info ? debug_info : "none");
+        break;
+      case GST_MESSAGE_WARNING:
+        gst_message_parse_warning(msg, &err, &debug_info);
+        RCLCPP_WARN(node_->get_logger(), "GStreamer Warning: %s", err->message);
+        break;
+      case GST_MESSAGE_EOS:
+        RCLCPP_ERROR(node_->get_logger(), "GStreamer: End of Stream reached (Pipeline Died)");
+        break;
+      default:
+        break;
+    }
+
+    g_clear_error(&err);
+    g_free(debug_info);
+    gst_message_unref(msg);
+  }
+  gst_object_unref(bus);
+
   // Use a timeout to allow graceful shutdown even when the pipeline stalls.
   GstSample * sample = gst_app_sink_try_pull_sample(
     GST_APP_SINK(sink_), 100 * GST_MSECOND);
@@ -588,6 +636,7 @@ void GSCamNode::impl::process_frame()
     std::copy(buf_data, (buf_data) + (buf_size), img->data.begin());
     jpeg_pub_->publish(std::move(img));
     cinfo_pub_->publish(std::move(cinfo));
+
   } else {
     // Complain if the returned buffer is smaller than we expect
     const unsigned int expected_frame_size = width_ * height_ *
